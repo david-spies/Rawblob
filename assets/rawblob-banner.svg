@@ -1,0 +1,259 @@
+<svg width="1200" height="260" viewBox="0 0 1200 260" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="rb-title rb-desc">
+  <title id="rb-title">Rawblob</title>
+  <desc id="rb-desc">Forensic file carving and reconstruction, entirely in your browser. Zero server-side storage.</desc>
+
+  <defs>
+    <radialGradient id="rb-glow" cx="22%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#E8A33D" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#E8A33D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rb-beam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E8A33D" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#E8A33D" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#E8A33D" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="rb-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+    <clipPath id="rb-round">
+      <rect x="1" y="1" width="1198" height="258" rx="14"/>
+    </clipPath>
+  </defs>
+
+  <rect x="1" y="1" width="1198" height="258" rx="14" fill="#15171D" stroke="#2C3140" stroke-width="2"/>
+
+  <g clip-path="url(#rb-round)">
+    <rect x="0" y="0" width="1200" height="260" fill="url(#rb-glow)"/>
+
+    <!-- ============ Mark: two carved fragments pulled apart ============ -->
+    <g transform="translate(48,54)">
+      <g>
+        <rect x="0" y="20" width="52" height="66" rx="9" fill="#1C302C" stroke="#4FB4A0" stroke-width="2"/>
+        <rect x="19" y="0" width="52" height="66" rx="9" fill="#3A311F" stroke="#E8A33D" stroke-width="2"/>
+        <line x1="19" y1="10" x2="19" y2="82" stroke="#E7E9EE" stroke-width="1.3" stroke-dasharray="3 4" stroke-opacity="0.45"/>
+        <animateTransform attributeName="transform" type="translate" additive="sum"
+          values="0 0; 0 -6; 0 0" keyTimes="0;0.5;1"
+          dur="3.2s" repeatCount="indefinite" calcMode="spline"
+          keySplines="0.4 0 0.2 1;0.4 0 0.2 1;0.4 0 0.2 1"/>
+      </g>
+    </g>
+
+    <!-- ============ Wordmark block ============ -->
+    <text x="204" y="76" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+          font-size="13" letter-spacing="3" fill="#E8A33D" opacity="0">ZERO-TRUST FORENSIC ENGINE
+      <animate attributeName="opacity" from="0" to="1" begin="0.1s" dur="0.6s" fill="freeze"/>
+    </text>
+
+    <text x="202" y="128" font-family="-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif"
+          font-size="56" font-weight="700" letter-spacing="1" fill="#E7E9EE" opacity="0">RAWBLOB
+      <animate attributeName="opacity" from="0" to="1" begin="0.25s" dur="0.7s" fill="freeze"/>
+    </text>
+
+    <text x="204" y="157" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+          font-size="15.5" fill="#8A90A3" opacity="0">Forensic file carving &amp; reconstruction — entirely in your browser.
+      <animate attributeName="opacity" from="0" to="1" begin="0.5s" dur="0.7s" fill="freeze"/>
+    </text>
+
+    <!-- Privacy pills -->
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5">
+      <g opacity="0">
+        <rect x="204" y="176" width="132" height="22" rx="11" fill="#1C302C" stroke="#4FB4A0" stroke-opacity="0.4"/>
+        <text x="270" y="190.5" text-anchor="middle" fill="#4FB4A0">CLIENT-SIDE ONLY</text>
+        <animate attributeName="opacity" from="0" to="1" begin="0.7s" dur="0.5s" fill="freeze"/>
+      </g>
+      <g opacity="0">
+        <rect x="344" y="176" width="158" height="22" rx="11" fill="#3A311F" stroke="#E8A33D" stroke-opacity="0.4"/>
+        <text x="423" y="190.5" text-anchor="middle" fill="#E8A33D">ZERO SERVER STORAGE</text>
+        <animate attributeName="opacity" from="0" to="1" begin="0.82s" dur="0.5s" fill="freeze"/>
+      </g>
+      <g opacity="0">
+        <rect x="510" y="176" width="96" height="22" rx="11" fill="#1C1F27" stroke="#2C3140"/>
+        <text x="558" y="190.5" text-anchor="middle" fill="#8A90A3">OPEN SOURCE</text>
+        <animate attributeName="opacity" from="0" to="1" begin="0.94s" dur="0.5s" fill="freeze"/>
+      </g>
+    </g>
+
+    <!-- ============ Right panel: live byte-signature reveal ============ -->
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" font-weight="500">
+        <g>
+          <rect x="760" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.00s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.00s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="782.0" y="75.0" text-anchor="middle" fill="#5B6072">89
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.00s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="808" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.12s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.12s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="830.0" y="75.0" text-anchor="middle" fill="#5B6072">50
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.12s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="856" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.24s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.24s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="878.0" y="75.0" text-anchor="middle" fill="#5B6072">4E
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.24s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="904" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.36s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.36s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="926.0" y="75.0" text-anchor="middle" fill="#5B6072">47
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.36s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="952" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.48s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.48s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="974.0" y="75.0" text-anchor="middle" fill="#5B6072">0D
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.48s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="1000" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.60s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.60s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="1022.0" y="75.0" text-anchor="middle" fill="#5B6072">0A
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.60s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="1048" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.72s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.72s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="1070.0" y="75.0" text-anchor="middle" fill="#5B6072">1A
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.72s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="1096" y="54" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="1.84s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.84s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="1118.0" y="75.0" text-anchor="middle" fill="#5B6072">0A
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="1.84s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="760" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.09s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.09s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="782.0" y="143.0" text-anchor="middle" fill="#5B6072">50
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.09s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="808" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.21s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.21s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="830.0" y="143.0" text-anchor="middle" fill="#5B6072">4B
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.21s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="856" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.33s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.33s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="878.0" y="143.0" text-anchor="middle" fill="#5B6072">03
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.33s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+        <g>
+          <rect x="904" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+            <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.45s" dur="0.9s" fill="freeze"/>
+            <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.45s" dur="0.9s" fill="freeze"/>
+          </rect>
+          <text x="926.0" y="143.0" text-anchor="middle" fill="#5B6072">04
+            <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.45s" dur="0.9s" fill="freeze"/>
+          </text>
+        </g>
+
+      <g opacity="0">
+        <rect x="760" y="94" width="150" height="18" rx="9" fill="#1C302C" stroke="#4FB4A0" stroke-opacity="0.4"/>
+        <text x="835" y="107" text-anchor="middle" font-size="10.5" fill="#4FB4A0">PNG CARVED · 0x0000</text>
+        <animate attributeName="opacity" from="0" to="1" begin="2.79s" dur="0.5s" fill="freeze"/>
+      </g>
+      <g opacity="0">
+        <rect x="760" y="162" width="150" height="18" rx="9" fill="#1C302C" stroke="#4FB4A0" stroke-opacity="0.4"/>
+        <text x="835" y="175" text-anchor="middle" font-size="10.5" fill="#4FB4A0">ZIP CARVED · 0x0034</text>
+        <animate attributeName="opacity" from="0" to="1" begin="4.40s" dur="0.5s" fill="freeze"/>
+      </g>
+    </g>
+
+    <!-- ============ Live status indicator ============ -->
+    <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" letter-spacing="1">
+      <circle cx="1148" cy="30" r="4.5" fill="#E2645C">
+        <animate attributeName="opacity" values="1;0.25;1" dur="1.4s" repeatCount="indefinite"/>
+      </circle>
+      <text x="1136" y="34" text-anchor="end" fill="#8A90A3">SCANNING</text>
+    </g>
+
+    <!-- ============ Bottom byte ruler (matches the in-app component) ============ -->
+    <g>
+      <line x1="40" y1="232" x2="1160" y2="232" stroke="#2C3140" stroke-width="1.5"/>
+      <g>
+        <line x1="40.0" y1="226" x2="40.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="40.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x0000</text>
+      </g>
+      <g>
+        <line x1="152.0" y1="226" x2="152.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="152.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x2666</text>
+      </g>
+      <g>
+        <line x1="264.0" y1="226" x2="264.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="264.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x4CCC</text>
+      </g>
+      <g>
+        <line x1="376.0" y1="226" x2="376.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="376.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x7333</text>
+      </g>
+      <g>
+        <line x1="488.0" y1="226" x2="488.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="488.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x9999</text>
+      </g>
+      <g>
+        <line x1="600.0" y1="226" x2="600.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="600.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0xC000</text>
+      </g>
+      <g>
+        <line x1="712.0" y1="226" x2="712.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="712.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0xE666</text>
+      </g>
+      <g>
+        <line x1="824.0" y1="226" x2="824.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="824.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x10CCC</text>
+      </g>
+      <g>
+        <line x1="936.0" y1="226" x2="936.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="936.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x13333</text>
+      </g>
+      <g>
+        <line x1="1048.0" y1="226" x2="1048.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="1048.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x15999</text>
+      </g>
+      <g>
+        <line x1="1160.0" y1="226" x2="1160.0" y2="232" stroke="#5B6072" stroke-width="1"/>
+        <text x="1160.0" y="248" text-anchor="middle" font-size="10" fill="#5B6072" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">0x18000</text>
+      </g>
+      <rect x="-150" y="224" width="150" height="16" fill="url(#rb-beam)" filter="url(#rb-blur)">
+        <animate attributeName="x" from="-150" to="1200" dur="4.5s" repeatCount="indefinite"/>
+      </rect>
+    </g>
+  </g>
+</svg>
