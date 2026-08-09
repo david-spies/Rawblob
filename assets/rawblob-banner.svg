@@ -148,38 +148,38 @@
           </text>
         </g>
         <g>
-          <rect x="760" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+          <rect x="952" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
             <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.09s" dur="0.9s" fill="freeze"/>
             <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.09s" dur="0.9s" fill="freeze"/>
           </rect>
-          <text x="782.0" y="143.0" text-anchor="middle" fill="#5B6072">50
+          <text x="974.0" y="143.0" text-anchor="middle" fill="#5B6072">50
             <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.09s" dur="0.9s" fill="freeze"/>
           </text>
         </g>
         <g>
-          <rect x="808" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+          <rect x="1000" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
             <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.21s" dur="0.9s" fill="freeze"/>
             <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.21s" dur="0.9s" fill="freeze"/>
           </rect>
-          <text x="830.0" y="143.0" text-anchor="middle" fill="#5B6072">4B
+          <text x="1022.0" y="143.0" text-anchor="middle" fill="#5B6072">4B
             <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.21s" dur="0.9s" fill="freeze"/>
           </text>
         </g>
         <g>
-          <rect x="856" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+          <rect x="1048" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
             <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.33s" dur="0.9s" fill="freeze"/>
             <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.33s" dur="0.9s" fill="freeze"/>
           </rect>
-          <text x="878.0" y="143.0" text-anchor="middle" fill="#5B6072">03
+          <text x="1070.0" y="143.0" text-anchor="middle" fill="#5B6072">03
             <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.33s" dur="0.9s" fill="freeze"/>
           </text>
         </g>
         <g>
-          <rect x="904" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
+          <rect x="1096" y="122" width="44" height="32" rx="4" fill="#1C1F27" stroke="#2C3140" stroke-width="1">
             <animate attributeName="fill" values="#1C1F27;#3A311F;#1C302C" keyTimes="0;0.5;1" begin="3.45s" dur="0.9s" fill="freeze"/>
             <animate attributeName="stroke" values="#2C3140;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.45s" dur="0.9s" fill="freeze"/>
           </rect>
-          <text x="926.0" y="143.0" text-anchor="middle" fill="#5B6072">04
+          <text x="1118.0" y="143.0" text-anchor="middle" fill="#5B6072">04
             <animate attributeName="fill" values="#5B6072;#E8A33D;#4FB4A0" keyTimes="0;0.5;1" begin="3.45s" dur="0.9s" fill="freeze"/>
           </text>
         </g>
@@ -190,8 +190,8 @@
         <animate attributeName="opacity" from="0" to="1" begin="2.79s" dur="0.5s" fill="freeze"/>
       </g>
       <g opacity="0">
-        <rect x="760" y="162" width="150" height="18" rx="9" fill="#1C302C" stroke="#4FB4A0" stroke-opacity="0.4"/>
-        <text x="835" y="175" text-anchor="middle" font-size="10.5" fill="#4FB4A0">ZIP CARVED · 0x0034</text>
+        <rect x="952" y="162" width="150" height="18" rx="9" fill="#1C302C" stroke="#4FB4A0" stroke-opacity="0.4"/>
+        <text x="1026" y="175" text-anchor="middle" font-size="10.5" fill="#4FB4A0">ZIP CARVED · 0x0034</text>
         <animate attributeName="opacity" from="0" to="1" begin="4.40s" dur="0.5s" fill="freeze"/>
       </g>
     </g>
