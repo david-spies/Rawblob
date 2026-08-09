@@ -1,0 +1,78 @@
+/* app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/*
+ * Tailwind v4 native theme config. This replaces tailwind.config.ts —
+ * v4 generates utility classes directly from these CSS custom properties
+ * (color tokens generate bg-, text-, and border- utilities; font tokens
+ * generate font- utilities; radius tokens generate rounded- utilities).
+ * Opacity modifiers like `border-rb-red/30` work automatically on any
+ * color token defined here.
+ */
+@theme {
+  --color-rb-bg: #15171d;
+  --color-rb-panel: #1c1f27;
+  --color-rb-panel-raised: #232733;
+  --color-rb-hairline: #2c3140;
+  --color-rb-text: #e7e9ee;
+  --color-rb-muted: #8a90a3;
+  --color-rb-faint: #5b6072;
+  --color-rb-amber: #e8a33d;
+  --color-rb-amber-dim: #3a311f;
+  --color-rb-teal: #4fb4a0;
+  --color-rb-teal-dim: #1c302c;
+  --color-rb-red: #e2645c;
+  --color-rb-red-dim: #341f1f;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --radius-rb: 6px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #15171d;
+  color: #e7e9ee;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+/* Visible keyboard focus everywhere — quality floor, not optional */
+:focus-visible {
+  outline: 2px solid #e8a33d;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Thin scrollbars that fit the instrument-panel feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #1c1f27;
+}
+::-webkit-scrollbar-thumb {
+  background: #2c3140;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4053;
+}
