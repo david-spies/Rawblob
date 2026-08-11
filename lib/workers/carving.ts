@@ -21,6 +21,16 @@ export interface CarvedFile {
   entropyConsistent: boolean; // does entropy match what's expected for this format?
   weakSignature: boolean;
   buffer: ArrayBuffer;
+  /** Hex preview of the matched header bytes, for display/verification in the UI. */
+  headerHex: string;
+  /** Hex preview of the matched footer bytes, or null if no footer was located. */
+  footerHex: string | null;
+  /** True if a real end-of-file marker was located; false means endOffset falls
+   *  back to the rest of the buffer and should be shown as an estimate, not a fact. */
+  footerFound: boolean;
+  /** True if this format doesn't have a standardized trailing marker at all
+   *  (MP3/MP4/WAV/EXE/RAR/etc) — a missing footer here is expected, not suspicious. */
+  hasStandardFooter: boolean;
 }
 
 const MIN_ENTROPY_SAMPLE = 128; // below this, entropy is statistically unreliable
@@ -137,6 +147,12 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
     }
   }
 
+  function toHex(slice: Uint8Array): string {
+    return Array.from(slice)
+      .map((b) => b.toString(16).padStart(2, '0').toUpperCase())
+      .join(' ');
+  }
+
   function pushHit(key: string, def: FileSignatureDefinition, start: number) {
     // Skip if this offset already falls inside a previously carved range
     // (avoids re-carving bytes that are just part of a legitimately found file,
@@ -144,9 +160,13 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
     if (claimedRanges.some(([s, e]) => start >= s && start < e)) return;
 
     let end = bytes.length;
+    let footerFound = false;
     if (def.findEnd) {
       const found = def.findEnd(bytes, start);
-      if (found.end !== -1) end = found.end;
+      if (found.end !== -1) {
+        end = found.end;
+        footerFound = true;
+      }
     }
     if (end <= start) return;
 
@@ -155,6 +175,9 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
     const confidence = entropyConfidenceFor(length);
     const consistent = isEntropyConsistent(key, entropy, confidence);
     const weak = !!def.weak;
+
+    const headerHex = toHex(bytes.slice(start, Math.min(start + 8, end)));
+    const footerHex = footerFound ? toHex(bytes.slice(Math.max(start, end - 8), end)) : null;
 
     // Weak (short) signatures need corroboration: either a passed customCheck
     // (already required above for BMP/PE) or a consistent entropy profile.
@@ -176,6 +199,10 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
       entropyConsistent: consistent,
       weakSignature: weak,
       buffer: bytes.buffer.slice(start, end) as ArrayBuffer,
+      headerHex,
+      footerHex,
+      footerFound,
+      hasStandardFooter: def.hasStandardFooter,
     });
   }
 

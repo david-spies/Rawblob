@@ -28,6 +28,14 @@ export interface FileSignatureDefinition {
   findEnd?: (bytes: Uint8Array, start: number) => EndMarkerResult;
   /** Signatures shorter than this are weak (e.g. 2-byte MZ/BM) and need corroboration */
   weak?: boolean;
+  /**
+   * Whether this format has a standardized end-of-file marker at all. When
+   * false (MP3 stream frames, MP4 atom boxes, WAV's header-declared size,
+   * EXE, RAR), a missing findEnd result is expected and not a red flag —
+   * the UI should just note the size is unbounded/estimated rather than
+   * imply something is wrong with the carve.
+   */
+  hasStandardFooter: boolean;
 }
 
 function indexOfSequence(bytes: Uint8Array, seq: number[], from: number): number {
@@ -45,6 +53,20 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'JPEG Image',
     mime: 'image/jpeg',
     signatures: [[0xff, 0xd8, 0xff]],
+    hasStandardFooter: true,
+    customCheck: (bytes, start) => {
+      // FF D8 FF alone is only 3 bytes and collides fairly often inside
+      // high-entropy compressed streams (e.g. inside a PDF full of Flate/
+      // DCT-compressed objects). A real JPEG's SOI (FF D8) is ALWAYS
+      // immediately followed by another marker segment, so the 4th byte
+      // must itself be a valid marker code — practically always in the
+      // 0xC0-0xFE range (APPn 0xE0-EF, DQT 0xDB, SOF0/2 0xC0/0xC2,
+      // DHT 0xC4, COM 0xFE, etc). A byte like 0x7C here is impossible in
+      // a genuine JPEG and is a strong signal of a coincidental match.
+      if (bytes.length < start + 4) return false;
+      const marker = bytes[start + 3];
+      return marker >= 0xc0 && marker <= 0xfe;
+    },
     findEnd: (bytes, start) => {
       // JPEG end-of-image marker: FF D9
       const end = indexOfSequence(bytes, [0xff, 0xd9], start + 3);
@@ -55,6 +77,7 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'PNG Image',
     mime: 'image/png',
     signatures: [[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+    hasStandardFooter: true,
     findEnd: (bytes, start) => {
       // IEND chunk: 4-byte length(0000)+"IEND"+4-byte CRC. Search for the
       // literal "IEND" chunk type and include its trailing CRC (4 bytes).
@@ -67,10 +90,16 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'GIF Image',
     mime: 'image/gif',
     signatures: [[0x47, 0x49, 0x46, 0x38]], // GIF87a / GIF89a
+    hasStandardFooter: true,
     findEnd: (bytes, start) => {
-      // GIF trailer byte: 0x3B
-      const idx = bytes.indexOf(0x3b, start + 6);
-      return { end: idx === -1 ? -1 : idx + 1 };
+      // Standard convention: block terminator 0x00 immediately followed by
+      // the GIF trailer byte 0x3B. Falls back to a bare 0x3B if the
+      // terminator byte isn't present (spec only strictly guarantees the
+      // trailer itself).
+      const pairIdx = indexOfSequence(bytes, [0x00, 0x3b], start + 6);
+      if (pairIdx !== -1) return { end: pairIdx + 2 };
+      const bareIdx = bytes.indexOf(0x3b, start + 6);
+      return { end: bareIdx === -1 ? -1 : bareIdx + 1 };
     },
   },
   BMP: {
@@ -78,6 +107,7 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     mime: 'image/bmp',
     signatures: [[0x42, 0x4d]],
     weak: true,
+    hasStandardFooter: false, // bounded by declared size field instead, via customCheck/findEnd below
     customCheck: (bytes, start) => {
       // Validate the declared file size field (offset 2, little-endian u32)
       // actually fits within the remaining buffer.
@@ -105,6 +135,7 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'PDF Document',
     mime: 'application/pdf',
     signatures: [[0x25, 0x50, 0x44, 0x46]], // %PDF
+    hasStandardFooter: true,
     findEnd: (bytes, start) => {
       // %%EOF marker
       const marker = [0x25, 0x25, 0x45, 0x4f, 0x46];
@@ -116,6 +147,7 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'ZIP Archive / DOCX / XLSX / PPTX',
     mime: 'application/zip',
     signatures: [[0x50, 0x4b, 0x03, 0x04]],
+    hasStandardFooter: true,
     findEnd: (bytes, start) => {
       // End of Central Directory record: PK\x05\x06, followed by a fixed
       // 18-byte structure plus a variable-length comment (last 2 bytes = comment length).
@@ -132,16 +164,19 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'TIFF Image (Intel)',
     mime: 'image/tiff',
     signatures: [[0x49, 0x49, 0x2a, 0x00]],
+    hasStandardFooter: false,
   },
   TIFF_MOTOROLA: {
     name: 'TIFF Image (Motorola)',
     mime: 'image/tiff',
     signatures: [[0x4d, 0x4d, 0x00, 0x2a]],
+    hasStandardFooter: false,
   },
   WEBP: {
     name: 'WebP Image',
     mime: 'image/webp',
     signatures: [[0x52, 0x49, 0x46, 0x46]],
+    hasStandardFooter: false, // bounded by RIFF chunk size field, not implemented yet
     customCheck: (bytes, start) => {
       if (bytes.length < start + 12) return false;
       return bytes[start + 8] === 0x57 && bytes[start + 9] === 0x45 && bytes[start + 10] === 0x42 && bytes[start + 11] === 0x50;
@@ -151,6 +186,7 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'WAV Audio Container',
     mime: 'audio/wav',
     signatures: [[0x52, 0x49, 0x46, 0x46]],
+    hasStandardFooter: false, // size is declared in the RIFF header, not a trailing marker
     customCheck: (bytes, start) => {
       if (bytes.length < start + 12) return false;
       return bytes[start + 8] === 0x57 && bytes[start + 9] === 0x41 && bytes[start + 10] === 0x56 && bytes[start + 11] === 0x45;
@@ -166,11 +202,13 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
       [0xff, 0xf2],
     ],
     weak: true, // frame-sync bytes are only 2 bytes and collide easily
+    hasStandardFooter: false, // stream just ends, no standard trailer
   },
   MP4_MOV: {
     name: 'MP4 / MOV Video Container',
     mime: 'video/mp4',
     signatures: [],
+    hasStandardFooter: false, // uses nested atom/box length fields, not a trailing marker
     customCheck: (bytes, start) => {
       if (bytes.length < start + 8) return false;
       return bytes[start + 4] === 0x66 && bytes[start + 5] === 0x74 && bytes[start + 6] === 0x79 && bytes[start + 7] === 0x70;
@@ -180,33 +218,39 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'GZIP Compressed Stream',
     mime: 'application/gzip',
     signatures: [[0x1f, 0x8b, 0x08]],
+    hasStandardFooter: false,
   },
   SEVEN_ZIP: {
     name: '7-Zip Archive',
     mime: 'application/x-7z-compressed',
     signatures: [[0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]],
+    hasStandardFooter: false,
   },
   RAR: {
     name: 'RAR Archive',
     mime: 'application/vnd.rar',
     signatures: [[0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00], [0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x01, 0x00]],
+    hasStandardFooter: false,
   },
   TAR: {
     name: 'TAR Archive',
     mime: 'application/x-tar',
     signatures: [[0x75, 0x73, 0x74, 0x61, 0x72]],
     offset: 257,
+    hasStandardFooter: false,
   },
   ELF: {
     name: 'Linux Executable (ELF)',
     mime: 'application/x-executable',
     signatures: [[0x7f, 0x45, 0x4c, 0x46]],
+    hasStandardFooter: false,
   },
   PE: {
     name: 'Windows Executable (PE / DOS MZ)',
     mime: 'application/vnd.microsoft.portable-executable',
     signatures: [[0x4d, 0x5a]],
     weak: true, // "MZ" is only 2 bytes; validate the PE header pointer too
+    hasStandardFooter: false,
     customCheck: (bytes, start) => {
       if (bytes.length < start + 0x40) return false;
       const e_lfanew =
@@ -230,6 +274,7 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     name: 'SVG Image (XML)',
     mime: 'image/svg+xml',
     signatures: [],
+    hasStandardFooter: false,
   },
 };
 

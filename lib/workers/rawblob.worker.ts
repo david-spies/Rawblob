@@ -7,14 +7,24 @@
 
 import { carveEmbeddedFiles, classifyBuffer, calculateShannonEntropy } from './carving';
 import { scanAndDecodeBase64 } from './base64scanner';
+import { parseQuery, searchPattern, SearchFormat } from './patternSearch';
 
 export type WorkerInputMessage =
   | { type: 'ANALYZE_TEXT'; payload: string }
-  | { type: 'ANALYZE_BUFFER'; payload: ArrayBuffer };
+  | { type: 'ANALYZE_BUFFER'; payload: ArrayBuffer }
+  | { type: 'SEARCH_PATTERN'; payload: { query: string; format: SearchFormat } };
 
 const MAX_BUFFER_BYTES = 15 * 1024 * 1024; // 15MB ceiling enforced here too,
 // not just at the UI drag-and-drop layer — a message posted directly to
 // this worker (e.g. from a future automation path) must not bypass the limit.
+
+// Retains the most recently analyzed buffer so SEARCH_PATTERN can run
+// without the main thread re-sending file bytes. Safe to keep: only the
+// smaller per-carved-file *slices* (independent copies from .slice()) get
+// transferred back to the main thread in ANALYZE_BUFFER below — the
+// original buffer this view wraps is never transferred away, so the
+// worker still fully owns it afterward.
+let lastAnalyzedBytes: Uint8Array | null = null;
 
 self.onmessage = (event: MessageEvent<WorkerInputMessage>) => {
   const { type, payload } = event.data;
@@ -47,6 +57,7 @@ self.onmessage = (event: MessageEvent<WorkerInputMessage>) => {
       }
 
       const bytes = new Uint8Array(payload);
+      lastAnalyzedBytes = bytes;
       const topLevel = classifyBuffer(bytes);
       const wholeBufferEntropy = calculateShannonEntropy(bytes);
       const carved = carveEmbeddedFiles(bytes);
@@ -65,6 +76,29 @@ self.onmessage = (event: MessageEvent<WorkerInputMessage>) => {
         },
         transferList as unknown as Transferable[]
       );
+      return;
+    }
+
+    if (type === 'SEARCH_PATTERN') {
+      if (!lastAnalyzedBytes) {
+        (self as unknown as Worker).postMessage({
+          status: 'ERROR',
+          message: 'No file loaded yet — analyze a file before searching.',
+        });
+        return;
+      }
+      const { query, format } = payload;
+      const parsed = parseQuery(query, format);
+      if ('error' in parsed) {
+        (self as unknown as Worker).postMessage({ status: 'ERROR', message: parsed.error });
+        return;
+      }
+      const { hits, totalMatches } = searchPattern(lastAnalyzedBytes, parsed.bytes);
+      (self as unknown as Worker).postMessage({
+        status: 'SUCCESS',
+        type: 'PATTERN_SEARCH_COMPLETE',
+        result: { hits, totalMatches, patternByteLength: parsed.bytes.length },
+      });
       return;
     }
 

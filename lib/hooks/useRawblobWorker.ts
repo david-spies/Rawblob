@@ -128,5 +128,23 @@ export function useRawblobWorker() {
     workerRef.current.postMessage({ type: 'ANALYZE_TEXT', payload: text });
   }, []);
 
-  return { status, error, analyzeBuffer, analyzeText, makePreviewable, reset };
+  const searchPattern = useCallback(
+    (query: string, format: 'hex' | 'ascii' | 'decimal', onResult: (msg: any) => void, onError: (msg: string) => void) => {
+      if (!workerRef.current) return;
+
+      const handle = (e: MessageEvent) => {
+        if (e.data.status === 'ERROR') {
+          onError(e.data.message);
+        } else {
+          onResult(e.data);
+        }
+        workerRef.current?.removeEventListener('message', handle);
+      };
+      workerRef.current.addEventListener('message', handle);
+      workerRef.current.postMessage({ type: 'SEARCH_PATTERN', payload: { query, format } });
+    },
+    []
+  );
+
+  return { status, error, analyzeBuffer, analyzeText, searchPattern, makePreviewable, reset };
 }
