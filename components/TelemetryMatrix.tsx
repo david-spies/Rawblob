@@ -7,7 +7,7 @@
 'use client';
 
 import { ByteRuler } from './ByteRuler';
-import { EntropyBadge, SignatureBadge } from './StatusBadges';
+import { EntropyBadge, SignatureBadge, FooterStatusBadge } from './StatusBadges';
 import type { RenderMode } from '../lib/hooks/useRawblobWorker';
 
 export interface TelemetryRow {
@@ -23,6 +23,8 @@ export interface TelemetryRow {
   startOffset: number;
   endOffset: number;
   renderMode: RenderMode;
+  footerFound: boolean;
+  hasStandardFooter: boolean;
 }
 
 interface TelemetryMatrixProps {
@@ -85,7 +87,10 @@ export function TelemetryMatrix({ rows, totalBytes, selectedId, onSelect }: Tele
               >
                 <td className="px-4 py-3 font-mono text-xs text-rb-muted whitespace-nowrap">{row.origin}</td>
                 <td className="px-4 py-3">
-                  <SignatureBadge name={row.signatureName} weak={row.weakSignature} />
+                  <div className="flex items-center gap-2">
+                    <SignatureBadge name={row.signatureName} weak={row.weakSignature} />
+                    <FooterStatusBadge footerFound={row.footerFound} hasStandardFooter={row.hasStandardFooter} />
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <EntropyBadge score={row.entropyScore} confidence={row.entropyConfidence} consistent={row.entropyConsistent} />

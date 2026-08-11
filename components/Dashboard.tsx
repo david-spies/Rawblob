@@ -2,9 +2,9 @@
 //
 // Composes the three-panel layout and owns the session state: the current
 // file's raw buffer, the merged list of telemetry rows (carved-from-buffer
-// + decoded-from-base64), and which row is currently selected for the
-// Reconstruction Canvas. All heavy lifting happens in the worker via
-// useRawblobWorker; this component is just wiring + layout.
+// + decoded-from-base64), which row is selected for the Reconstruction
+// Canvas, and manual pattern-search results. All heavy lifting happens in
+// the worker via useRawblobWorker; this component is just wiring + layout.
 
 'use client';
 
@@ -12,19 +12,33 @@ import { useCallback, useState } from 'react';
 import { DropZone } from './DropZone';
 import { TelemetryMatrix, TelemetryRow } from './TelemetryMatrix';
 import { ReconstructionCanvas, CanvasPayload } from './ReconstructionCanvas';
+import { PatternSearchPanel, SearchFormat, SearchHit } from './PatternSearchPanel';
 import { useRawblobWorker, PreviewablePayload } from '../lib/hooks/useRawblobWorker';
+
+interface CarvedMeta {
+  headerHex: string;
+  footerHex: string | null;
+  footerFound: boolean;
+  hasStandardFooter: boolean;
+}
 
 interface SessionItem {
   row: TelemetryRow;
   preview: PreviewablePayload;
+  meta: CarvedMeta;
 }
 
 export function Dashboard() {
-  const { status, error, analyzeBuffer, makePreviewable, reset } = useRawblobWorker();
+  const { status, error, analyzeBuffer, makePreviewable, searchPattern, reset } = useRawblobWorker();
   const [fileName, setFileName] = useState<string | null>(null);
   const [totalBytes, setTotalBytes] = useState(0);
   const [items, setItems] = useState<SessionItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [searchTotal, setSearchTotal] = useState<number | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleFileAccepted = useCallback(
     async (file: File) => {
@@ -32,6 +46,9 @@ export function Dashboard() {
       setItems([]);
       setSelectedId(null);
       setFileName(file.name);
+      setSearchHits([]);
+      setSearchTotal(null);
+      setSearchError(null);
 
       const arrayBuffer = await file.arrayBuffer();
       setTotalBytes(arrayBuffer.byteLength);
@@ -55,8 +72,16 @@ export function Dashboard() {
             startOffset: c.startOffset,
             endOffset: c.endOffset,
             renderMode: preview.renderMode,
+            footerFound: c.footerFound,
+            hasStandardFooter: c.hasStandardFooter,
           };
-          return { row, preview };
+          const meta: CarvedMeta = {
+            headerHex: c.headerHex,
+            footerHex: c.footerHex,
+            footerFound: c.footerFound,
+            hasStandardFooter: c.hasStandardFooter,
+          };
+          return { row, preview, meta };
         });
 
         setItems(nextItems);
@@ -64,6 +89,41 @@ export function Dashboard() {
       });
     },
     [analyzeBuffer, makePreviewable, reset]
+  );
+
+  const handleSearch = useCallback(
+    (query: string, format: SearchFormat) => {
+      setIsSearching(true);
+      setSearchError(null);
+      searchPattern(
+        query,
+        format,
+        (msg) => {
+          setIsSearching(false);
+          if (msg.type !== 'PATTERN_SEARCH_COMPLETE') return;
+          setSearchHits(msg.result.hits);
+          setSearchTotal(msg.result.totalMatches);
+        },
+        (message) => {
+          setIsSearching(false);
+          setSearchError(message);
+          setSearchHits([]);
+          setSearchTotal(null);
+        }
+      );
+    },
+    [searchPattern]
+  );
+
+  // Jumping from a search hit selects whichever carved payload contains
+  // that offset, if any — otherwise there's simply nothing to preview
+  // (the hit is in a region that wasn't carved as a recognized file).
+  const handleSelectSearchOffset = useCallback(
+    (offset: number) => {
+      const match = items.find((i) => offset >= i.row.startOffset && offset < i.row.endOffset);
+      if (match) setSelectedId(match.row.id);
+    },
+    [items]
   );
 
   const selected = items.find((i) => i.row.id === selectedId);
@@ -79,6 +139,10 @@ export function Dashboard() {
         startOffset: selected.row.startOffset,
         endOffset: selected.row.endOffset,
         totalBufferBytes: totalBytes,
+        headerHex: selected.meta.headerHex,
+        footerHex: selected.meta.footerHex,
+        footerFound: selected.meta.footerFound,
+        hasStandardFooter: selected.meta.hasStandardFooter,
       }
     : null;
 
@@ -113,6 +177,18 @@ export function Dashboard() {
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-rb-muted uppercase tracking-wide">Reconstruction &amp; Preview Canvas</h2>
         <ReconstructionCanvas payload={selectedPayload} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <PatternSearchPanel
+          disabled={totalBytes === 0}
+          onSearch={handleSearch}
+          hits={searchHits}
+          totalMatches={searchTotal}
+          error={searchError}
+          isSearching={isSearching}
+          onSelectOffset={handleSelectSearchOffset}
+        />
       </section>
     </div>
   );

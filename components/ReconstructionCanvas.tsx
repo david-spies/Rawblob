@@ -13,7 +13,7 @@
 
 import { useMemo } from 'react';
 import { ByteRuler } from './ByteRuler';
-import { RenderModeBadge } from './StatusBadges';
+import { RenderModeBadge, FooterStatusBadge } from './StatusBadges';
 import type { RenderMode } from '../lib/hooks/useRawblobWorker';
 
 export interface CanvasPayload {
@@ -27,6 +27,10 @@ export interface CanvasPayload {
   startOffset: number;
   endOffset: number;
   totalBufferBytes: number;
+  headerHex: string;
+  footerHex: string | null;
+  footerFound: boolean;
+  hasStandardFooter: boolean;
 }
 
 interface ReconstructionCanvasProps {
@@ -116,6 +120,21 @@ export function ReconstructionCanvas({ payload }: ReconstructionCanvasProps) {
         highlightEnd={payload.endOffset}
         highlightColor={payload.renderMode === 'inert' ? 'red' : payload.renderMode === 'sandboxed' ? 'amber' : 'teal'}
       />
+
+      {/* Signature match detail — the exact bytes that identified this format
+          and bounded its extraction, so the offset shown above can be verified
+          rather than taken on faith. */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-rb border border-rb-hairline bg-rb-bg px-3 py-2.5 text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <span className="text-rb-faint uppercase tracking-wide">Header</span>
+          <span className="text-rb-text">{payload.headerHex}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-rb-faint uppercase tracking-wide">Footer</span>
+          <span className="text-rb-text">{payload.footerHex ?? '—'}</span>
+        </div>
+        <FooterStatusBadge footerFound={payload.footerFound} hasStandardFooter={payload.hasStandardFooter} />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Preview pane — strictly obeys renderMode */}

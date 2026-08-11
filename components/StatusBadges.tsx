@@ -65,6 +65,41 @@ export function SignatureBadge({ name, weak }: SignatureBadgeProps) {
   );
 }
 
+interface FooterStatusBadgeProps {
+  footerFound: boolean;
+  hasStandardFooter: boolean;
+}
+
+export function FooterStatusBadge({ footerFound, hasStandardFooter }: FooterStatusBadgeProps) {
+  if (!hasStandardFooter) {
+    // Formats like MP3/MP4/WAV/EXE/RAR have no standardized trailer at all —
+    // an "unbounded" size here is expected, not a red flag, so keep this quiet.
+    return (
+      <span
+        className="inline-flex items-center rounded-rb border border-rb-hairline bg-rb-panel-raised px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-rb-faint"
+        title="This format has no standardized end-of-file marker — size is derived from format-specific structure, not a trailing signature"
+      >
+        no std. footer
+      </span>
+    );
+  }
+  if (footerFound) {
+    return (
+      <span className="inline-flex items-center rounded-rb border border-rb-teal/30 bg-rb-teal-dim px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-rb-teal">
+        footer confirmed
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center rounded-rb border border-rb-red/30 bg-rb-red-dim px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-rb-red"
+      title="Expected end-of-file marker wasn't found — the end offset falls back to the rest of the buffer and is an estimate, not confirmed"
+    >
+      unbounded
+    </span>
+  );
+}
+
 interface RenderModeBadgeProps {
   mode: 'image' | 'text' | 'sandboxed' | 'inert';
 }
