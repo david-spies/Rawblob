@@ -13,8 +13,9 @@
 
 import { useMemo } from 'react';
 import { ByteRuler } from './ByteRuler';
-import { RenderModeBadge, FooterStatusBadge } from './StatusBadges';
+import { RenderModeBadge, FooterStatusBadge, StructureBadge } from './StatusBadges';
 import type { RenderMode } from '../lib/hooks/useRawblobWorker';
+import type { StructuralValidation } from '../lib/workers/contentValidation';
 
 export interface CanvasPayload {
   id: string;
@@ -31,6 +32,7 @@ export interface CanvasPayload {
   footerHex: string | null;
   footerFound: boolean;
   hasStandardFooter: boolean;
+  structuralValidation?: StructuralValidation;
 }
 
 interface ReconstructionCanvasProps {
@@ -135,6 +137,31 @@ export function ReconstructionCanvas({ payload }: ReconstructionCanvasProps) {
         </div>
         <FooterStatusBadge footerFound={payload.footerFound} hasStandardFooter={payload.hasStandardFooter} />
       </div>
+
+      {/* Content-based corroboration (currently PDF only) — header/footer
+          bytes alone can be coincidental, so this shows what structure was
+          actually found inside the carved range, not just claimed by its
+          boundaries. */}
+      {payload.structuralValidation && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-rb border border-rb-hairline bg-rb-bg px-3 py-2.5 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <span className="text-rb-faint uppercase tracking-wide">Interior markers</span>
+            <span className="text-rb-text">
+              {payload.structuralValidation.markersFound.length > 0 ? payload.structuralValidation.markersFound.join(', ') : 'none found'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-rb-faint uppercase tracking-wide">obj / endobj</span>
+            <span className="text-rb-text">
+              {payload.structuralValidation.objCount} / {payload.structuralValidation.endobjCount}
+            </span>
+          </div>
+          <StructureBadge
+            confidence={payload.structuralValidation.confidence}
+            markersFound={payload.structuralValidation.markersFound}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Preview pane — strictly obeys renderMode */}

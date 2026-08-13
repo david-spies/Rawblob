@@ -100,6 +100,44 @@ export function FooterStatusBadge({ footerFound, hasStandardFooter }: FooterStat
   );
 }
 
+interface StructureBadgeProps {
+  confidence: 'high' | 'medium' | 'low';
+  markersFound: string[];
+}
+
+export function StructureBadge({ confidence, markersFound }: StructureBadgeProps) {
+  // Header/footer bytes alone can be coincidental — this reflects whether
+  // real structure intrinsic to the format (obj/endobj, stream, xref,
+  // trailer, /Root for PDF) was actually found inside the carved range,
+  // not just claimed by matching boundary bytes.
+  const map: Record<StructureBadgeProps['confidence'], { label: string; tone: string; title: string }> = {
+    high: {
+      label: 'structure verified',
+      tone: 'bg-rb-teal-dim text-rb-teal border-rb-teal/30',
+      title: `Interior structure confirmed (${markersFound.join(', ') || 'no markers'}) — this is genuine content, not just a header/footer match`,
+    },
+    medium: {
+      label: 'structure partial',
+      tone: 'bg-rb-amber-dim text-rb-amber border-rb-amber/30',
+      title: `Some interior structure found (${markersFound.join(', ') || 'no markers'}) but limited corroboration — plausible for newer PDF variants, still worth a closer look`,
+    },
+    low: {
+      label: 'structure not found',
+      tone: 'bg-rb-red-dim text-rb-red border-rb-red/30',
+      title: 'No object-model structure found inside this range — the header/footer bytes may be a coincidental match rather than genuine content',
+    },
+  };
+  const { label, tone, title } = map[confidence];
+  return (
+    <span
+      className={`inline-flex items-center rounded-rb border px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide ${tone}`}
+      title={title}
+    >
+      {label}
+    </span>
+  );
+}
+
 interface RenderModeBadgeProps {
   mode: 'image' | 'text' | 'sandboxed' | 'inert';
 }

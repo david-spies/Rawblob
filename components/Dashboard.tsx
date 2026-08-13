@@ -14,12 +14,14 @@ import { TelemetryMatrix, TelemetryRow } from './TelemetryMatrix';
 import { ReconstructionCanvas, CanvasPayload } from './ReconstructionCanvas';
 import { PatternSearchPanel, SearchFormat, SearchHit } from './PatternSearchPanel';
 import { useRawblobWorker, PreviewablePayload } from '../lib/hooks/useRawblobWorker';
+import type { StructuralValidation } from '../lib/workers/contentValidation';
 
 interface CarvedMeta {
   headerHex: string;
   footerHex: string | null;
   footerFound: boolean;
   hasStandardFooter: boolean;
+  structuralValidation?: StructuralValidation;
 }
 
 interface SessionItem {
@@ -74,12 +76,14 @@ export function Dashboard() {
             renderMode: preview.renderMode,
             footerFound: c.footerFound,
             hasStandardFooter: c.hasStandardFooter,
+            structuralValidation: c.structuralValidation,
           };
           const meta: CarvedMeta = {
             headerHex: c.headerHex,
             footerHex: c.footerHex,
             footerFound: c.footerFound,
             hasStandardFooter: c.hasStandardFooter,
+            structuralValidation: c.structuralValidation,
           };
           return { row, preview, meta };
         });
@@ -143,6 +147,7 @@ export function Dashboard() {
         footerHex: selected.meta.footerHex,
         footerFound: selected.meta.footerFound,
         hasStandardFooter: selected.meta.hasStandardFooter,
+        structuralValidation: selected.meta.structuralValidation,
       }
     : null;
 

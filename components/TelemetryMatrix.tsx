@@ -7,8 +7,9 @@
 'use client';
 
 import { ByteRuler } from './ByteRuler';
-import { EntropyBadge, SignatureBadge, FooterStatusBadge } from './StatusBadges';
+import { EntropyBadge, SignatureBadge, FooterStatusBadge, StructureBadge } from './StatusBadges';
 import type { RenderMode } from '../lib/hooks/useRawblobWorker';
+import type { StructuralValidation } from '../lib/workers/contentValidation';
 
 export interface TelemetryRow {
   id: string;
@@ -25,6 +26,7 @@ export interface TelemetryRow {
   renderMode: RenderMode;
   footerFound: boolean;
   hasStandardFooter: boolean;
+  structuralValidation?: StructuralValidation;
 }
 
 interface TelemetryMatrixProps {
@@ -41,6 +43,7 @@ function formatBytes(n: number): string {
 }
 
 function highlightColorFor(row: TelemetryRow): 'amber' | 'teal' | 'red' {
+  if (row.structuralValidation?.confidence === 'low') return 'red';
   if (row.entropyScore >= 7.2 && !row.weakSignature) return 'red';
   if (!row.entropyConsistent) return 'red';
   return row.weakSignature ? 'amber' : 'teal';
@@ -87,9 +90,15 @@ export function TelemetryMatrix({ rows, totalBytes, selectedId, onSelect }: Tele
               >
                 <td className="px-4 py-3 font-mono text-xs text-rb-muted whitespace-nowrap">{row.origin}</td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <SignatureBadge name={row.signatureName} weak={row.weakSignature} />
                     <FooterStatusBadge footerFound={row.footerFound} hasStandardFooter={row.hasStandardFooter} />
+                    {row.structuralValidation && (
+                      <StructureBadge
+                        confidence={row.structuralValidation.confidence}
+                        markersFound={row.structuralValidation.markersFound}
+                      />
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3">
