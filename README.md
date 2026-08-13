@@ -33,10 +33,32 @@ entropy analysis, and decoding all run locally via Web Workers.
   header alone (2–4 bytes) can coincidentally occur inside high-entropy
   compressed data, especially in containers like PDFs that are full of
   Flate/DCT-compressed streams. Rawblob corroborates structurally where a
-  format allows it (e.g. JPEG requires a real marker code immediately
-  after the SOI bytes, not just any byte) and always reports whether a
-  standard end-of-file marker was actually located — see **Signature
-  confidence** below.
+  format allows it (JPEG requires a real marker code immediately after the
+  SOI bytes, not just any byte; SVG requires the byte after `<svg` to
+  plausibly end a tag name, not just any element that starts with those
+  four characters) and always reports whether a standard end-of-file
+  marker was actually located — see **Signature confidence** below. When
+  no footer is found, the carve is capped at the next detected file's
+  start offset rather than the rest of the buffer, so an unbounded format
+  can never silently claim bytes that belong to a file found right after
+  it.
+- **Corroborates PDF matches by scanning their interior structure**, not
+  just their boundary bytes. `%PDF`/`%%EOF` alone only proves the header
+  and footer bytes exist somewhere — it says nothing about what's between
+  them. Rawblob scans the carved range for the ASCII tokens intrinsic to
+  PDF's object model (`obj`/`endobj`, `stream`/`endstream`, `xref`,
+  `trailer`, `/Root`) and reports a confidence tier based on what it
+  actually finds: a `%PDF`/`%%EOF` pair with no `obj`/`endobj` structure
+  inside it is a strong signal of a coincidental match rather than a real
+  PDF, the same class of problem the JPEG marker check above catches for
+  images. This is adapted from published forensic research on content-
+  based carving as a defense against file-signature obfuscation, where
+  header/footer-only tools were shown to recover 0% of deliberately
+  obfuscated PDFs while a content-aware approach recovered over 93%.
+- **Detects SVG images via an XML tag sniff**, not a fixed magic number —
+  SVG has none. Bounded by either a matching `</svg>` closing tag or a
+  self-closing `<svg .../>` root element, and always rendered inside a
+  script-disabled sandbox since SVG can carry active markup.
 - **Detects and decodes Base64-encoded payloads** embedded in document
   text, filtering out incidental alphanumeric noise (hashes, tokens, UUIDs)
   so you see genuine embedded files and plaintext, not everything that
@@ -78,6 +100,10 @@ rawblob/
 │   │   │                         #   hasStandardFooter per format)
 │   │   ├── carving.ts            # Sliding-window carving engine + entropy +
 │   │   │                         #   header/footer hex capture
+│   │   ├── contentValidation.ts  # Content-based corroboration (PDF interior
+│   │   │                         #   marker scan) — catches coincidental
+│   │   │                         #   header/footer matches with no real
+│   │   │                         #   structure inside
 │   │   ├── base64scanner.ts      # Confidence-scored Base64 payload detector
 │   │   ├── patternSearch.ts      # Hex/ASCII/decimal query parsing + buffer search
 │   │   └── rawblob.worker.ts     # Worker entry point — ties it all together,
@@ -87,11 +113,6 @@ rawblob/
 │                                 #   safe render-mode classification, search calls
 ├── assets/
 │   └── rawblob-banner.svg        # Animated README banner (SMIL, GitHub-safe)
-├── test/
-│   ├── harness.ts                # Engine tests: carving, entropy, Base64 gating,
-│   │                             #   header/footer validation, pattern search
-│   ├── dom-smoke.tsx             # Component render smoke test
-│   └── dom-smoke.setup.cjs       # jsdom bootstrap required to run the smoke test
 ├── postcss.config.js             # Tailwind v4 PostCSS plugin wiring
 ├── tsconfig.json
 ├── package.json
@@ -118,21 +139,6 @@ To build for production:
 ```bash
 npm run build
 npm run start
-```
-
-To run the engine test suite (carving accuracy, entropy sanity, Base64
-false-positive/true-positive gating, header/footer validation, pattern
-search parsing):
-
-```bash
-npx esbuild test/harness.ts --bundle --platform=node --format=cjs --outfile=/tmp/harness.cjs && node /tmp/harness.cjs
-```
-
-To run the component render smoke test (requires `jsdom` and
-`esbuild-register` as dev dependencies):
-
-```bash
-node -r ./test/dom-smoke.setup.cjs test/dom-smoke.tsx
 ```
 
 If `next`, `framer-motion`, or React aren't already present in your
@@ -176,12 +182,21 @@ somewhere instead of the v4 `@import "tailwindcss";` syntax — check
      format-appropriate end marker (PNG's `IEND` chunk + CRC, PDF's
      `%%EOF`, ZIP's End-of-Central-Directory record, GIF's `00 3B`
      trailer with a bare-`3B` fallback, JPEG's `FF D9`). Whether this
-     search actually found a real footer — or fell back to "rest of the
-     buffer" — is preserved and shown, not hidden.
+     search actually found a real footer — or fell back to the next
+     detected file's start offset — is preserved and shown, not hidden.
+   - **Interior structure scan (PDF only, currently)** — header and
+     footer bytes only prove the boundaries look right; they say nothing
+     about what's between them. For PDF, the carved range is scanned for
+     the ASCII tokens intrinsic to its object model (`obj`/`endobj`,
+     `stream`, `xref`, `trailer`, `/Root`), and a confidence tier is
+     derived from what's actually found — catching the case where a
+     `%PDF`/`%%EOF` pair matched coincidentally with no real PDF content
+     between them.
 4. Every detected payload appears as a row in the **Telemetry Matrix**,
    with its signature, a footer-confidence badge, entropy score, size, and
    a position indicator showing exactly where it sits in the original
-   buffer.
+   buffer. PDF rows also carry a structure-confidence badge from the
+   interior scan above.
 5. Selecting a row opens it in the **Reconstruction Canvas**: the matched
    header and footer bytes in hex (so a carve can be manually verified,
    not just trusted), a live preview (image, text, or sandboxed markup)
@@ -201,8 +216,11 @@ Reconstruction Canvas:
 - **`footer confirmed`** (teal) — a real end-of-file marker was located
   for this format; the offset range is a fact, not an estimate.
 - **`unbounded`** (red) — this format has a standard footer, but it
-  couldn't be found; the end offset falls back to the rest of the buffer
-  and should be treated as an estimate, not a confirmed boundary.
+  couldn't be found; the end offset falls back to either the next detected
+  file's start offset or the rest of the buffer if nothing follows, and
+  should be treated as an estimate, not a confirmed boundary. It will
+  never overlap another carved file's range, though — see the fallback
+  note under **What it does** above.
 - **`no std. footer`** (neutral) — this format has no standardized
   trailing marker at all (MP3 stream frames, MP4 atom boxes, WAV's
   header-declared size, EXE, RAR, 7-Zip, GZIP, TAR, TIFF, WebP) — the size
@@ -213,6 +231,26 @@ Reconstruction Canvas:
   additional structural check (PE walks its actual `e_lfanew` → `PE\0\0`
   header pointer; BMP validates its declared file-size field) but are
   still flagged so a hit isn't presented with unearned confidence.
+
+**Content-based corroboration (PDF only, for now).** A second, independent
+badge appears next to PDF hits specifically, reflecting whether real
+object-model structure was found *inside* the carved range — not just
+claimed by its header/footer bytes:
+
+- **`structure verified`** (teal) — `obj`/`endobj` pairs found, plus at
+  least one of `stream`/`endstream`/`xref`/`trailer`/`/Root`. Genuine PDF
+  content, high confidence.
+- **`structure partial`** (amber) — `obj`/`endobj` found, but none of the
+  other tokens. Still real structure — plausible for PDFs using compressed
+  cross-reference streams (PDF 1.5+), which don't use the classic
+  `xref`/`trailer` keywords at all — just with less corroborating
+  evidence.
+- **`structure not found`** (red) — no `obj`/`endobj` pairing anywhere in
+  the range. Every real PDF with at least one object has this; its total
+  absence is a strong signal that the `%PDF`/`%%EOF` match is coincidental
+  rather than genuine PDF content. The Reconstruction Canvas shows the
+  exact markers found (or their absence) and the raw `obj`/`endobj` counts
+  for this hit.
 
 ## Usability notes
 
@@ -268,14 +306,13 @@ Reconstruction Canvas:
   before non-plaintext document types can be scanned end-to-end for
   embedded Base64 content specifically (raw-buffer carving already works
   against PDFs today, including finding files embedded within them).
-- SVG signature detection is defined in `signatures.ts` but not yet
-  actively matched (SVG has no fixed magic number and needs a lightweight
-  XML-prolog sniff) — the `sandboxed` render path is ready for it.
 - WebP, TIFF, and a few other RIFF/chunked formats are marked
-  `hasStandardFooter: false` and carve to the rest of the buffer rather
-  than parsing their internal chunk/size fields for a precise bound —
-  functionally correct for classification, but their reported byte length
-  should be read as an upper bound, not exact, until that parsing is added.
+  `hasStandardFooter: false` and carve up to the next detected file (or the
+  rest of the buffer if nothing follows) rather than parsing their internal
+  chunk/size fields for a precise bound — functionally correct for
+  classification and now safely non-overlapping with neighboring carves,
+  but their reported byte length should still be read as an upper bound,
+  not exact, until that internal-length parsing is added.
 - Very large extracted text blobs are scanned in a single synchronous pass
   inside the worker; fine at the current 15MB ceiling, but worth chunking
   with a match cap if that ceiling is ever raised.
@@ -283,3 +320,14 @@ Reconstruction Canvas:
   it has no awareness of Base64-decoded sub-buffers once text extraction
   is wired up, so it will need to gain a "search scope" selector at that
   point.
+- Content-based structural corroboration currently covers PDF only. The
+  same pattern (scan the carved interior for tokens intrinsic to the
+  format, not just its boundary bytes) extends naturally to other
+  container formats — e.g. cross-checking ZIP's central directory entry
+  count against the number of local file headers actually found — but
+  isn't implemented yet. Detecting PDFs with deliberately obfuscated
+  header/footer bytes (no `%PDF`/`%%EOF` to anchor on at all) is a related
+  but separate, harder problem: it would mean scanning for `trailer`/
+  `xref`/`obj` clusters with no matching header nearby, which the current
+  carving pass doesn't attempt since it only starts from a signature
+  match.
