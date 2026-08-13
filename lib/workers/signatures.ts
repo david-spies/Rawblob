@@ -269,12 +269,39 @@ export const FILE_SIGNATURES: Record<string, FileSignatureDefinition> = {
     },
   },
   SVG: {
-    // Text-based, no fixed magic number — matched separately via markup sniff
-    // in the carving engine since it doesn't fit the byte-signature model.
+    // Text-based, no fixed magic number in the traditional sense — but the
+    // literal ASCII bytes "<svg" are a reliable enough anchor once
+    // corroborated by requiring the byte right after it to plausibly end
+    // a tag name (not just any element name that happens to start with
+    // "svg", like a hypothetical custom "<svgFoo>" element).
     name: 'SVG Image (XML)',
     mime: 'image/svg+xml',
-    signatures: [],
-    hasStandardFooter: false,
+    signatures: [[0x3c, 0x73, 0x76, 0x67]], // "<svg"
+    hasStandardFooter: true,
+    customCheck: (bytes, start) => {
+      if (bytes.length < start + 5) return false;
+      const b = bytes[start + 4];
+      // whitespace, '>', or '/' (self-closing) are the only bytes that can
+      // legally follow a complete "svg" tag name in valid XML.
+      return b === 0x20 || b === 0x09 || b === 0x0a || b === 0x0d || b === 0x3e || b === 0x2f;
+    },
+    findEnd: (bytes, start) => {
+      // First find the end of the opening tag itself — the first
+      // unescaped '>' after "<svg". XML attribute values must escape a
+      // literal '>' as &gt;, so a bare '>' reliably closes the tag.
+      const openTagEnd = bytes.indexOf(0x3e, start + 4); // '>'
+      if (openTagEnd === -1) return { end: -1 };
+
+      // Self-closing root element: "<svg .../>" — nothing more to find.
+      if (bytes[openTagEnd - 1] === 0x2f) {
+        return { end: openTagEnd + 1 };
+      }
+
+      // Otherwise, find the matching "</svg>" closing tag.
+      const closeTag = [0x3c, 0x2f, 0x73, 0x76, 0x67, 0x3e]; // "</svg>"
+      const idx = indexOfSequence(bytes, closeTag, openTagEnd);
+      return { end: idx === -1 ? -1 : idx + closeTag.length };
+    },
   },
 };
 

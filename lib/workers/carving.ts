@@ -7,6 +7,7 @@
 // concatenated/hidden in one blob are each recovered individually.
 
 import { FILE_SIGNATURES, FileSignatureDefinition } from './signatures';
+import { analyzePdfStructure, StructuralValidation } from './contentValidation';
 
 export interface CarvedFile {
   id: string;
@@ -31,6 +32,11 @@ export interface CarvedFile {
   /** True if this format doesn't have a standardized trailing marker at all
    *  (MP3/MP4/WAV/EXE/RAR/etc) — a missing footer here is expected, not suspicious. */
   hasStandardFooter: boolean;
+  /** Content-based corroboration (currently PDF only): whether the carved
+   *  range actually contains structure intrinsic to the format, not just
+   *  a matching header/footer. Undefined for formats without a content
+   *  scan implemented yet. */
+  structuralValidation?: StructuralValidation;
 }
 
 const MIN_ENTROPY_SAMPLE = 128; // below this, entropy is statistically unreliable
@@ -90,6 +96,10 @@ const EXPECTED_ENTROPY_RANGE: Record<string, [number, number]> = {
   TIFF_INTEL: [3.0, 8.0],
   TIFF_MOTOROLA: [3.0, 8.0],
   WAV: [3.0, 8.0],
+  SVG: [0.5, 7.5], // plain XML text usually reads low-moderate, but an
+  // SVG embedding a base64 data: URI image can legitimately spike much
+  // higher — kept permissive on purpose after the PDF false-positive
+  // lesson above.
 };
 
 function isEntropyConsistent(type: string, entropy: number, confidence: 'low' | 'medium' | 'high'): boolean {
@@ -99,25 +109,43 @@ function isEntropyConsistent(type: string, entropy: number, confidence: 'low' | 
   return entropy >= range[0] && entropy <= range[1];
 }
 
+interface Candidate {
+  key: string;
+  def: FileSignatureDefinition;
+  start: number;
+}
+
+const MAX_CANDIDATES = MAX_CARVED_FILES * 10; // generous ceiling before sort/resolve
+
 /**
  * Sliding-window scan across the ENTIRE buffer for every known signature,
  * at every offset — not just offset 0. This is what lets Rawblob find a
  * ZIP concatenated after a legitimate PNG, or a PE hidden mid-stream.
+ *
+ * Runs in two phases:
+ *   1. Collect every validated header match (start offset only) across
+ *      every format, regardless of buffer position.
+ *   2. Sort those candidates left-to-right, then resolve each one's end
+ *      offset in that order. This is what lets an unbounded fallback (no
+ *      footer found, or the format has no standard footer at all) stop at
+ *      the next known file's start offset instead of claiming the rest of
+ *      the buffer — previously, an early-in-object-order format with no
+ *      footer (e.g. GZIP) could claim a range that fully overlapped a
+ *      later, correctly-bounded file (e.g. a PNG) found right after it,
+ *      reporting both to the analyst as if each independently owned those
+ *      bytes.
  */
 export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
-  const results: CarvedFile[] = [];
-  const claimedRanges: Array<[number, number]> = [];
-  let counter = 0;
-
   const scanLimit = Math.min(bytes.length, MAX_SCAN_OFFSET_STEP_LIMIT);
+  const candidates: Candidate[] = [];
 
-  for (const [key, def] of Object.entries(FILE_SIGNATURES) as [string, FileSignatureDefinition][]) {
+  outer: for (const [key, def] of Object.entries(FILE_SIGNATURES) as [string, FileSignatureDefinition][]) {
     if (def.signatures.length === 0 && !def.customCheck) continue;
 
     // Fixed-offset formats (e.g. TAR's ustar at 257) are checked once, not slid.
     if (def.offset !== undefined) {
       if (matchAtOffset(bytes, def, def.offset)) {
-        pushHit(key, def, def.offset);
+        candidates.push({ key, def, start: def.offset });
       }
       continue;
     }
@@ -128,10 +156,10 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
         const idx = indexOfSequence(bytes, sig, searchFrom, scanLimit);
         if (idx === -1) break;
         if (def.customCheck ? def.customCheck(bytes, idx) : true) {
-          pushHit(key, def, idx);
+          candidates.push({ key, def, start: idx });
+          if (candidates.length >= MAX_CANDIDATES) break outer;
         }
         searchFrom = idx + 1;
-        if (results.length >= MAX_CARVED_FILES) return results;
       }
     }
 
@@ -140,11 +168,22 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
     if (def.signatures.length === 0 && def.customCheck) {
       for (let i = 0; i < scanLimit - 8; i++) {
         if (def.customCheck(bytes, i)) {
-          pushHit(key, def, i);
-          if (results.length >= MAX_CARVED_FILES) return results;
+          candidates.push({ key, def, start: i });
+          if (candidates.length >= MAX_CANDIDATES) break outer;
         }
       }
     }
+  }
+
+  candidates.sort((a, b) => a.start - b.start);
+
+  // Precompute, for each candidate, the start offset of the next candidate
+  // with a strictly greater start (skipping same-offset ties from other
+  // formats matching the same position) — this is the boundary an
+  // unbounded fallback must not cross. O(n) via a backward pass.
+  const nextDistinctStart: number[] = new Array(candidates.length).fill(-1);
+  for (let i = candidates.length - 2; i >= 0; i--) {
+    nextDistinctStart[i] = candidates[i + 1].start > candidates[i].start ? candidates[i + 1].start : nextDistinctStart[i + 1];
   }
 
   function toHex(slice: Uint8Array): string {
@@ -153,11 +192,13 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
       .join(' ');
   }
 
-  function pushHit(key: string, def: FileSignatureDefinition, start: number) {
-    // Skip if this offset already falls inside a previously carved range
-    // (avoids re-carving bytes that are just part of a legitimately found file,
-    // e.g. a WAV subchunk header that happens to look like something else).
-    if (claimedRanges.some(([s, e]) => start >= s && start < e)) return;
+  const results: CarvedFile[] = [];
+  let counter = 0;
+  let cursor = 0; // end offset of the most recently accepted hit
+
+  for (let i = 0; i < candidates.length; i++) {
+    const { key, def, start } = candidates[i];
+    if (start < cursor) continue; // falls inside a previously accepted hit — skip
 
     let end = bytes.length;
     let footerFound = false;
@@ -168,7 +209,15 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
         footerFound = true;
       }
     }
-    if (end <= start) return;
+
+    if (!footerFound) {
+      // No confirmed end marker — cap the fallback at the next known
+      // file's start offset rather than the rest of the buffer.
+      const cap = nextDistinctStart[i];
+      if (cap !== -1 && cap < end) end = cap;
+    }
+
+    if (end <= start) continue;
 
     const length = end - start;
     const entropy = calculateShannonEntropy(bytes, start, end);
@@ -179,12 +228,11 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
     const headerHex = toHex(bytes.slice(start, Math.min(start + 8, end)));
     const footerHex = footerFound ? toHex(bytes.slice(Math.max(start, end - 8), end)) : null;
 
-    // Weak (short) signatures need corroboration: either a passed customCheck
-    // (already required above for BMP/PE) or a consistent entropy profile.
-    // If neither, we still report it but mark confidence low so the UI can
-    // de-emphasize it rather than hide it outright — analysts should see
-    // everything, just ranked by trust.
-    claimedRanges.push([start, end]);
+    // Content-based corroboration, currently PDF only: header/footer bytes
+    // alone can be coincidental (proven directly by the JPEG false
+    // positive found earlier), so for PDF specifically also check that
+    // real object-model structure exists inside the carved range.
+    const structuralValidation = key === 'PDF' ? analyzePdfStructure(bytes, start, end) : undefined;
 
     results.push({
       id: `carved-${counter++}`,
@@ -203,10 +251,13 @@ export function carveEmbeddedFiles(bytes: Uint8Array): CarvedFile[] {
       footerHex,
       footerFound,
       hasStandardFooter: def.hasStandardFooter,
+      structuralValidation,
     });
+
+    cursor = end;
+    if (results.length >= MAX_CARVED_FILES) break;
   }
 
-  results.sort((a, b) => a.startOffset - b.startOffset);
   return results;
 }
 
