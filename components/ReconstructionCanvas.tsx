@@ -28,10 +28,14 @@ export interface CanvasPayload {
   startOffset: number;
   endOffset: number;
   totalBufferBytes: number;
+  /** Whether startOffset/endOffset are raw byte positions in the original
+   *  file, or character positions in separately-extracted document text —
+   *  these must never share the same ByteRuler scale. */
+  sourceKind: 'buffer' | 'extracted-text';
   headerHex: string;
   footerHex: string | null;
-  footerFound: boolean;
-  hasStandardFooter: boolean;
+  footerFound?: boolean;
+  hasStandardFooter?: boolean;
   structuralValidation?: StructuralValidation;
 }
 
@@ -109,19 +113,28 @@ export function ReconstructionCanvas({ payload }: ReconstructionCanvasProps) {
         <div>
           <h3 className="text-rb-text font-medium">{payload.name}</h3>
           <p className="mt-0.5 text-xs font-mono text-rb-faint">
-            {payload.mime} · offset {payload.startOffset}–{payload.endOffset} · {payload.endOffset - payload.startOffset} bytes
+            {payload.mime} ·{' '}
+            {payload.sourceKind === 'buffer'
+              ? `offset ${payload.startOffset}–${payload.endOffset} · ${payload.endOffset - payload.startOffset} bytes`
+              : `char ~${payload.startOffset} in extracted text · ${payload.endOffset - payload.startOffset} bytes decoded`}
           </p>
         </div>
         <RenderModeBadge mode={payload.renderMode} />
       </div>
 
-      <ByteRuler
-        mode="full"
-        totalBytes={payload.totalBufferBytes}
-        highlightStart={payload.startOffset}
-        highlightEnd={payload.endOffset}
-        highlightColor={payload.renderMode === 'inert' ? 'red' : payload.renderMode === 'sandboxed' ? 'amber' : 'teal'}
-      />
+      {payload.sourceKind === 'buffer' ? (
+        <ByteRuler
+          mode="full"
+          totalBytes={payload.totalBufferBytes}
+          highlightStart={payload.startOffset}
+          highlightEnd={payload.endOffset}
+          highlightColor={payload.renderMode === 'inert' ? 'red' : payload.renderMode === 'sandboxed' ? 'amber' : 'teal'}
+        />
+      ) : (
+        <p className="text-xs text-rb-faint font-mono italic">
+          Found inside extracted document text, not at a fixed position in the raw file — the byte ruler doesn't apply here.
+        </p>
+      )}
 
       {/* Signature match detail — the exact bytes that identified this format
           and bounded its extraction, so the offset shown above can be verified
@@ -135,7 +148,9 @@ export function ReconstructionCanvas({ payload }: ReconstructionCanvasProps) {
           <span className="text-rb-faint uppercase tracking-wide">Footer</span>
           <span className="text-rb-text">{payload.footerHex ?? '—'}</span>
         </div>
-        <FooterStatusBadge footerFound={payload.footerFound} hasStandardFooter={payload.hasStandardFooter} />
+        {payload.footerFound !== undefined && payload.hasStandardFooter !== undefined && (
+          <FooterStatusBadge footerFound={payload.footerFound} hasStandardFooter={payload.hasStandardFooter} />
+        )}
       </div>
 
       {/* Content-based corroboration (currently PDF only) — header/footer

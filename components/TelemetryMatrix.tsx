@@ -13,7 +13,12 @@ import type { StructuralValidation } from '../lib/workers/contentValidation';
 
 export interface TelemetryRow {
   id: string;
-  origin: string; // e.g. "Buffer offset 0x0184" or "Base64 block, line text"
+  origin: string; // e.g. "Buffer offset 0x0184" or "Base64 in extracted text, char ~412"
+  /** Whether startOffset/endOffset are raw byte positions in the original
+   *  file buffer, or character positions in a separately-extracted text
+   *  string (PDF/DOCX text extraction). These are different scales and
+   *  must never be plotted against the same ByteRuler. */
+  sourceKind: 'buffer' | 'extracted-text';
   type: string;
   signatureName: string;
   weakSignature: boolean;
@@ -24,8 +29,8 @@ export interface TelemetryRow {
   startOffset: number;
   endOffset: number;
   renderMode: RenderMode;
-  footerFound: boolean;
-  hasStandardFooter: boolean;
+  footerFound?: boolean;
+  hasStandardFooter?: boolean;
   structuralValidation?: StructuralValidation;
 }
 
@@ -92,7 +97,9 @@ export function TelemetryMatrix({ rows, totalBytes, selectedId, onSelect }: Tele
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     <SignatureBadge name={row.signatureName} weak={row.weakSignature} />
-                    <FooterStatusBadge footerFound={row.footerFound} hasStandardFooter={row.hasStandardFooter} />
+                    {row.footerFound !== undefined && row.hasStandardFooter !== undefined && (
+                      <FooterStatusBadge footerFound={row.footerFound} hasStandardFooter={row.hasStandardFooter} />
+                    )}
                     {row.structuralValidation && (
                       <StructureBadge
                         confidence={row.structuralValidation.confidence}
@@ -106,13 +113,19 @@ export function TelemetryMatrix({ rows, totalBytes, selectedId, onSelect }: Tele
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-rb-muted whitespace-nowrap">{formatBytes(row.byteLength)}</td>
                 <td className="px-4 py-3">
-                  <ByteRuler
-                    mode="mini"
-                    totalBytes={totalBytes}
-                    highlightStart={row.startOffset}
-                    highlightEnd={row.endOffset}
-                    highlightColor={highlightColorFor(row)}
-                  />
+                  {row.sourceKind === 'buffer' ? (
+                    <ByteRuler
+                      mode="mini"
+                      totalBytes={totalBytes}
+                      highlightStart={row.startOffset}
+                      highlightEnd={row.endOffset}
+                      highlightColor={highlightColorFor(row)}
+                    />
+                  ) : (
+                    <span className="text-[11px] font-mono text-rb-faint" title="Character offset in extracted document text, not a raw file byte offset">
+                      text char ~{row.startOffset}
+                    </span>
+                  )}
                 </td>
               </tr>
             );
