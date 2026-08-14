@@ -62,7 +62,17 @@ entropy analysis, and decoding all run locally via Web Workers.
 - **Detects and decodes Base64-encoded payloads** embedded in document
   text, filtering out incidental alphanumeric noise (hashes, tokens, UUIDs)
   so you see genuine embedded files and plaintext, not everything that
-  happens to be base64-shaped.
+  happens to be base64-shaped. Plain-text formats (TXT/MD/CSV/LOG/JSON)
+  are scanned directly; PDF and DOCX are scanned via extracted text — a
+  PDF's visible text is stored in structured/font-encoded form in the raw
+  bytes, not as plain ASCII, so a Base64 block pasted into a PDF or Word
+  document's body text wouldn't be found by raw byte carving alone. Text
+  extraction runs as a second, independent pass alongside raw-buffer
+  carving (which is unaffected either way) via `pdfjs-dist` for PDF and
+  `mammoth` for DOCX. The extracted text itself is also shown directly in
+  a collapsible **Extracted Document Text** panel — regardless of whether
+  any Base64 payload was found in it — so extraction has something visible
+  to check even for the common case of a document with no embedded blobs.
 - **Scores every payload with Shannon entropy** to flag likely encryption
   or compression, with confidence tiers so small samples aren't given
   false authority.
@@ -90,6 +100,9 @@ rawblob/
 │   ├── ReconstructionCanvas.tsx  # Split-screen preview + hex inspector +
 │   │                             #   matched header/footer bytes
 │   ├── PatternSearchPanel.tsx    # Manual hex/ASCII/decimal signature search
+│   ├── ExtractedTextPanel.tsx    # Shows the actual text pulled from a
+│   │                             #   PDF/DOCX/plain-text file, independent
+│   │                             #   of whether any payload was found in it
 │   ├── ByteRuler.tsx             # Offset ruler (full + mini position-bar)
 │   └── StatusBadges.tsx          # Entropy / signature / footer-confidence /
 │                                 #   render-mode badges
@@ -105,6 +118,8 @@ rawblob/
 │   │   │                         #   header/footer matches with no real
 │   │   │                         #   structure inside
 │   │   ├── base64scanner.ts      # Confidence-scored Base64 payload detector
+│   │   ├── textExtraction.ts     # PDF (pdfjs-dist) / DOCX (mammoth) text
+│   │   │                         #   extraction, feeding into base64scanner
 │   │   ├── patternSearch.ts      # Hex/ASCII/decimal query parsing + buffer search
 │   │   └── rawblob.worker.ts     # Worker entry point — ties it all together,
 │   │                             #   retains the analyzed buffer for search
@@ -192,16 +207,28 @@ somewhere instead of the v4 `@import "tailwindcss";` syntax — check
      derived from what's actually found — catching the case where a
      `%PDF`/`%%EOF` pair matched coincidentally with no real PDF content
      between them.
-4. Every detected payload appears as a row in the **Telemetry Matrix**,
+4. **Independently, the worker also scans for Base64-encoded content in
+   the document's text**, routed by format: plain-text formats (TXT/MD/
+   CSV/LOG/JSON) are read and scanned directly; PDF is extracted via
+   `pdfjs-dist` first; DOCX via `mammoth`. This finds Base64 blocks
+   sitting in a document's visible text — a case raw-buffer carving alone
+   can't cover for PDF/DOCX, since their visible text is stored in
+   structured/font-encoded form in the file, not as plain ASCII bytes.
+   Extraction failure (a malformed PDF, a corrupted DOCX) is reported as
+   its own status and never blocks the raw-buffer carving results, which
+   already ran independently against the same file.
+5. Every detected payload appears as a row in the **Telemetry Matrix**,
    with its signature, a footer-confidence badge, entropy score, size, and
-   a position indicator showing exactly where it sits in the original
-   buffer. PDF rows also carry a structure-confidence badge from the
-   interior scan above.
-5. Selecting a row opens it in the **Reconstruction Canvas**: the matched
+   a position indicator — either a byte offset in the raw buffer, or a
+   character offset in the extracted text, depending on which pass found
+   it. These are two different scales and are never plotted against the
+   same ruler. PDF rows carved from the raw buffer also carry a
+   structure-confidence badge from the interior scan above.
+6. Selecting a row opens it in the **Reconstruction Canvas**: the matched
    header and footer bytes in hex (so a carve can be manually verified,
    not just trusted), a live preview (image, text, or sandboxed markup)
    alongside a full hex dump, and a one-click, non-executable download.
-6. **Manual Signature Search** (collapsed by default, below the canvas)
+7. **Manual Signature Search** (collapsed by default, below the canvas)
    lets you query the loaded buffer directly for a hex, ASCII, or decimal
    byte pattern — independent of the automatic carving pass. Selecting a
    result jumps to it in the canvas if it falls inside an already-carved
@@ -300,12 +327,44 @@ claimed by its header/footer bytes:
 
 ## Known limitations / not yet wired
 
-- PDF (`pdfjs-dist`) and DOCX (`mammoth.js`) text extraction are not yet
-  connected to `analyzeText` — the worker currently accepts raw text or a
-  raw buffer directly; hooking up per-format extraction is the next step
-  before non-plaintext document types can be scanned end-to-end for
-  embedded Base64 content specifically (raw-buffer carving already works
-  against PDFs today, including finding files embedded within them).
+- **RTF text extraction is not implemented.** RTF needs its own
+  control-word parser (it's not XML/zip-based like DOCX or object-based
+  like PDF), which this doesn't have yet — RTF files still get full
+  raw-buffer carving, just no Base64-in-text scanning.
+- **Bundler resolution of `pdfjs-dist`'s worker script hasn't been
+  confirmed working end-to-end.** `GlobalWorkerOptions.workerSrc` is now
+  explicitly set via `new URL('pdfjs-dist/legacy/build/pdf.worker.mjs',
+  import.meta.url)` in `textExtraction.ts` — a real-world regression from
+  an earlier approach (see below) — which is the standard bundler-resolved
+  asset pattern webpack 5+/Turbopack support, but actual resolution
+  through Next.js's Turbopack in this project hasn't been confirmed with
+  a live test yet. If you see a 404 or resolution error for
+  `pdf.worker.mjs`, that's the next thing to debug — share the exact
+  error and it can be fixed directly.
+- **PDF/DOCX text extraction's core logic was verified end-to-end
+  against real generated files** (a PDF and a DOCX, each containing a
+  genuine embedded Base64 payload) — both libraries correctly extract
+  text and it correctly feeds into the Base64 scanner. One specific
+  earlier claim did NOT hold up under real-world use, worth stating
+  plainly: leaving `GlobalWorkerOptions.workerSrc` unset was verified by
+  reading pdfjs-dist's source to trigger a safe internal fallback, and
+  that held for a simple test PDF — but real testing against a wider
+  variety of real PDFs surfaced a `No "GlobalWorkerOptions.workerSrc"
+  specified` failure for some of them, meaning some internal pdfjs code
+  path (likely font-handling or a specific content-stream operation)
+  references it outside the fallback's try/catch. The fix — explicitly
+  setting `workerSrc` — sidesteps the issue rather than patching each
+  internal call site, but is itself a step less fully proven than the
+  extraction logic it wraps (see the bundler-resolution note above).
+- **Optional PDF font/CJK assets aren't wired up yet.** `pdfjs-dist` ships
+  `standard_fonts` and `cmaps` directories for full-fidelity rendering of
+  PDFs using non-embedded standard fonts or CJK/custom character maps.
+  Text extraction works without them for the common case (embedded fonts,
+  Latin text) — you'll just see a console warning from pdfjs. To silence
+  it and support more PDFs fully, copy
+  `node_modules/pdfjs-dist/standard_fonts` to `public/standard_fonts` and
+  `node_modules/pdfjs-dist/cmaps` to `public/pdf-cmaps` (paths already
+  configured in `textExtraction.ts` to expect them there).
 - WebP, TIFF, and a few other RIFF/chunked formats are marked
   `hasStandardFooter: false` and carve up to the next detected file (or the
   rest of the buffer if nothing follows) rather than parsing their internal
