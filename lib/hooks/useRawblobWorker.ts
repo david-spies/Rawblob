@@ -146,5 +146,23 @@ export function useRawblobWorker() {
     []
   );
 
-  return { status, error, analyzeBuffer, analyzeText, searchPattern, makePreviewable, reset };
+  const extractDocumentText = useCallback(
+    (format: 'pdf' | 'docx', buffer: ArrayBuffer, onResult: (msg: any) => void, onError: (msg: string) => void) => {
+      if (!workerRef.current) return;
+
+      const handle = (e: MessageEvent) => {
+        if (e.data.status === 'ERROR') {
+          onError(e.data.message);
+        } else {
+          onResult(e.data);
+        }
+        workerRef.current?.removeEventListener('message', handle);
+      };
+      workerRef.current.addEventListener('message', handle);
+      workerRef.current.postMessage({ type: 'EXTRACT_DOCUMENT_TEXT', payload: { format, buffer } }, [buffer]);
+    },
+    []
+  );
+
+  return { status, error, analyzeBuffer, analyzeText, searchPattern, extractDocumentText, makePreviewable, reset };
 }

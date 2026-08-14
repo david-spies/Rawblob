@@ -8,11 +8,15 @@
 import { carveEmbeddedFiles, classifyBuffer, calculateShannonEntropy } from './carving';
 import { scanAndDecodeBase64 } from './base64scanner';
 import { parseQuery, searchPattern, SearchFormat } from './patternSearch';
+import { extractPdfText, extractDocxText } from './textExtraction';
+
+export type DocumentFormat = 'pdf' | 'docx';
 
 export type WorkerInputMessage =
   | { type: 'ANALYZE_TEXT'; payload: string }
   | { type: 'ANALYZE_BUFFER'; payload: ArrayBuffer }
-  | { type: 'SEARCH_PATTERN'; payload: { query: string; format: SearchFormat } };
+  | { type: 'SEARCH_PATTERN'; payload: { query: string; format: SearchFormat } }
+  | { type: 'EXTRACT_DOCUMENT_TEXT'; payload: { format: DocumentFormat; buffer: ArrayBuffer } };
 
 const MAX_BUFFER_BYTES = 15 * 1024 * 1024; // 15MB ceiling enforced here too,
 // not just at the UI drag-and-drop layer — a message posted directly to
@@ -99,6 +103,65 @@ self.onmessage = (event: MessageEvent<WorkerInputMessage>) => {
         type: 'PATTERN_SEARCH_COMPLETE',
         result: { hits, totalMatches, patternByteLength: parsed.bytes.length },
       });
+      return;
+    }
+
+    if (type === 'EXTRACT_DOCUMENT_TEXT') {
+      const { format, buffer } = payload;
+      if (!(buffer instanceof ArrayBuffer)) {
+        throw new Error('EXTRACT_DOCUMENT_TEXT requires an ArrayBuffer payload.');
+      }
+      if (buffer.byteLength > MAX_BUFFER_BYTES) {
+        (self as unknown as Worker).postMessage({
+          status: 'ERROR',
+          message: `Buffer exceeds the 15MB analysis ceiling (${buffer.byteLength} bytes received).`,
+        });
+        return;
+      }
+
+      // Extraction failure (a malformed/encrypted PDF, a corrupted DOCX
+      // zip) is reported as its own status rather than a hard worker
+      // error — raw-buffer carving against the same file already ran
+      // independently via ANALYZE_BUFFER and isn't affected by this at
+      // all, so a failed extraction here shouldn't look like the whole
+      // analysis failed.
+      (async () => {
+        try {
+          const { text, warning } =
+            format === 'pdf' ? await extractPdfText(buffer) : await extractDocxText(buffer);
+
+          // Base64 scanning always runs against the FULL extracted text —
+          // only the copy sent back for on-screen display is capped, so a
+          // very long document can't bloat the message or the UI.
+          const payloads = scanAndDecodeBase64(text);
+          const DISPLAY_CAP = 200_000;
+          const displayText = text.length > DISPLAY_CAP ? text.slice(0, DISPLAY_CAP) : text;
+          const truncated = text.length > DISPLAY_CAP;
+
+          const transferList = payloads.map((h) => h.buffer);
+          (self as unknown as Worker).postMessage(
+            {
+              status: 'SUCCESS',
+              type: 'DOCUMENT_TEXT_SCAN_COMPLETE',
+              result: { extractedTextLength: text.length, extractedText: displayText, truncated, warning, payloads },
+            },
+            transferList as unknown as Transferable[]
+          );
+        } catch (err) {
+          (self as unknown as Worker).postMessage({
+            status: 'SUCCESS', // extraction failing isn't a fatal worker error
+            type: 'DOCUMENT_TEXT_SCAN_COMPLETE',
+            result: {
+              extractedTextLength: 0,
+              extractedText: '',
+              truncated: false,
+              warning: undefined,
+              payloads: [],
+              extractionError: err instanceof Error ? err.message : 'Unknown extraction failure.',
+            },
+          });
+        }
+      })();
       return;
     }
 

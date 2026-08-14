@@ -12,7 +12,7 @@
 // Everything else is dropped rather than shown, so analysts aren't stuck
 // triaging hundreds of coincidental matches per document.
 
-import { calculateShannonEntropy } from './carving';
+import { calculateShannonEntropy, isEntropyConsistent } from './carving';
 import { classifyBuffer } from './carving';
 
 export interface Base64Hit {
@@ -21,11 +21,16 @@ export interface Base64Hit {
   byteLength: number;
   entropyScore: number;
   entropyConfidence: 'low' | 'medium' | 'high';
+  entropyConsistent: boolean;
   fileSignature: { type: string; name: string; mime: string; weak: boolean };
   reason: 'signature-match' | 'printable-text' | 'high-entropy-binary';
   confidence: 'low' | 'medium' | 'high';
   buffer: ArrayBuffer;
+  /** Character offset into the source text where this Base64 block starts. */
   sourceOffset: number;
+  /** Character span of the encoded block in the source text — distinct
+   *  from byteLength, which is the DECODED byte count. */
+  encodedLength: number;
 }
 
 const MIN_CANDIDATE_LENGTH = 40; // encoded-string length, not decoded byte length
@@ -72,12 +77,14 @@ export function scanAndDecodeBase64(text: string): Base64Hit[] {
     const signature = classifyBuffer(bytes);
     const entropy = calculateShannonEntropy(bytes);
     const confidenceFromSize = bytes.length < 128 ? 'low' : bytes.length < 1024 ? 'medium' : 'high';
+    const offset = match.index ?? 0;
 
     // Gate 1: matches a known file signature — always worth surfacing.
     if (signature.type !== 'OCTET_STREAM') {
+      const consistent = isEntropyConsistent(signature.type, entropy, confidenceFromSize);
       hits.push(
-        buildHit(counter++, encoded, bytes, entropy, confidenceFromSize, signature, 'signature-match',
-          signature.weak ? 'medium' : 'high')
+        buildHit(counter++, encoded, bytes, entropy, confidenceFromSize, consistent, signature, 'signature-match',
+          signature.weak ? 'medium' : 'high', offset)
       );
       continue;
     }
@@ -87,8 +94,12 @@ export function scanAndDecodeBase64(text: string): Base64Hit[] {
     // random noise.
     const { printable } = isLikelyPrintableText(bytes);
     if (printable && bytes.length >= MIN_DECODED_TEXT_LENGTH) {
+      // No format signature to check entropy expectations against —
+      // "consistent" isn't a meaningful question here, so default true
+      // rather than risk a false "inconsistent" flag with nothing to
+      // compare against.
       hits.push(
-        buildHit(counter++, encoded, bytes, entropy, confidenceFromSize, signature, 'printable-text', 'medium')
+        buildHit(counter++, encoded, bytes, entropy, confidenceFromSize, true, signature, 'printable-text', 'medium', offset)
       );
       continue;
     }
@@ -99,7 +110,7 @@ export function scanAndDecodeBase64(text: string): Base64Hit[] {
     // all and drop the candidate rather than guess.
     if (bytes.length >= 128 && entropy >= 7.0) {
       hits.push(
-        buildHit(counter++, encoded, bytes, entropy, confidenceFromSize, signature, 'high-entropy-binary', 'low')
+        buildHit(counter++, encoded, bytes, entropy, confidenceFromSize, true, signature, 'high-entropy-binary', 'low', offset)
       );
       continue;
     }
@@ -118,9 +129,11 @@ function buildHit(
   bytes: Uint8Array,
   entropy: number,
   entropyConfidence: 'low' | 'medium' | 'high',
+  entropyConsistent: boolean,
   signature: { type: string; name: string; mime: string; weak: boolean },
   reason: Base64Hit['reason'],
-  confidence: Base64Hit['confidence']
+  confidence: Base64Hit['confidence'],
+  sourceOffset: number
 ): Base64Hit {
   return {
     id: `b64-${counter}`,
@@ -128,10 +141,12 @@ function buildHit(
     byteLength: bytes.length,
     entropyScore: entropy,
     entropyConfidence,
+    entropyConsistent,
     fileSignature: signature,
     reason,
     confidence,
     buffer: bytes.buffer as ArrayBuffer,
-    sourceOffset: 0, // filled in by caller if match index is tracked upstream
+    sourceOffset,
+    encodedLength: encoded.length,
   };
 }

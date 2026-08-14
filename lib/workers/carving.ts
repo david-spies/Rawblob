@@ -62,7 +62,7 @@ export function calculateShannonEntropy(bytes: Uint8Array, start = 0, end = byte
   return Number(entropy.toFixed(4));
 }
 
-function entropyConfidenceFor(sampleSize: number): 'low' | 'medium' | 'high' {
+export function entropyConfidenceFor(sampleSize: number): 'low' | 'medium' | 'high' {
   if (sampleSize < MIN_ENTROPY_SAMPLE) return 'low';
   if (sampleSize < 1024) return 'medium';
   return 'high';
@@ -102,7 +102,7 @@ const EXPECTED_ENTROPY_RANGE: Record<string, [number, number]> = {
   // lesson above.
 };
 
-function isEntropyConsistent(type: string, entropy: number, confidence: 'low' | 'medium' | 'high'): boolean {
+export function isEntropyConsistent(type: string, entropy: number, confidence: 'low' | 'medium' | 'high'): boolean {
   if (confidence === 'low') return true; // not enough sample to judge, don't flag
   const range = EXPECTED_ENTROPY_RANGE[type];
   if (!range) return true;
