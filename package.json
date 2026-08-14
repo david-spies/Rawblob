@@ -7,25 +7,23 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc -p tsconfig.json",
-    "test": "esbuild test/harness.ts --bundle --platform=node --format=cjs --outfile=/tmp/rawblob-harness.cjs && node /tmp/rawblob-harness.cjs"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "framer-motion": "^11.0.0",
+    "mammoth": "^1.12.1",
     "next": "^16.0.0",
+    "pdfjs-dist": "^6.2.108",
     "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "framer-motion": "^11.0.0"
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^20.14.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
-    "@types/node": "^20.14.0",
-    "tailwindcss": "^4.0.0",
-    "@tailwindcss/postcss": "^4.0.0",
     "postcss": "^8.4.0",
-    "esbuild": "^0.23.0",
-    "jsdom": "^24.0.0",
-    "esbuild-register": "^3.5.0"
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.5.0"
   }
 }
